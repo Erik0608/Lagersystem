@@ -11,13 +11,140 @@
 
 <h1>Dashboard</h1>
 <h2>Lagersystem</h2>
+<div class="infos">
+  <div class="icon-input">
+    <p class="info"><img src="../img/Arrowup-right.svg" class="icon" alt="lock"/>Produkte<br><span id="itemCount">Lade...</span></br></p>
+  </div>
 
-<p>Gesamtanzahl Gegenstände: <span id="itemCount">Lade...</span></p>
-<button id="lager">Zum Lager</button>
-<button id="einlagern">Einlagern</button>
-<button id="auslagern">Auslagern</button>
-<button id="einstellungen">Einstellungen</button>
-<button id="logoutBtn">Logout</button>
+  <p class="info">
+    <img src="../img/Activity.svg" class="icon" alt="lock"/>
+      Mindestbestand (<span id="minVal">...</span>):
+      <span id="lowCount">Lade...</span>
+    </img>
+  </p>
+</div>
+<div class="nav">
+  <button id="lager">
+    Bestand
+    <img src="../img/box.svg" class="btn-icon" />
+  </button>
+
+  <button id="einlagern">
+    Einlagern
+    <img src="../img/Folderplus.svg" class="btn-icon" />
+  </button>
+
+  <button id="auslagern">
+    Auslagern
+    <img src="../img/Folderminus.svg" class="btn-icon" />
+  </button>
+</div>
+
+<div id="bottom-nav">
+  <div class="section">
+    <div id="settingsBtn">
+      <img src="../img/Settings.svg" class="icons" alt="Settings"/>
+    </div>
+    <div id="dashBtn">
+      <img src="../img/Home.svg" class="icons" alt="Home"/>
+    </div>
+    <div id="logoutBtn">
+      <img src="../img/Logout.svg" class="icons" alt="Logout"/>
+    </div>
+  </div>
+</div>
+
+<style>
+
+body {
+  background: #f3f3f3;
+  font-family: Arial, sans-serif;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+  
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+h1 {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.info {
+  background-color: #112D4E;
+  color: white;
+  width: 40vw;
+  height: 10vh;
+  text-align: left;
+}
+
+.infos {
+  display: flex;
+  gap: 30px;              /* Abstand zwischen den Boxen */
+  align-items: stretch;   /* gleiche Höhe */
+  justify-content: center;/* optional: zentrieren */
+  padding: 6px;
+}
+
+.icon{
+  position: relative;
+  left: 31vw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* center the 95% buttons */
+  width: 100%;
+}
+
+.nav button {
+  width: 95%;
+  height: 10vh;
+  margin-bottom: 12px;
+  background: #3F72AF;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.2rem;
+
+  display: flex;            /* make icon + text align */
+  justify-content: space-between; /* text left, icon right */
+  align-items: center;      /* vertically centered */
+  padding: 0 20px;          /* spacing inside button */
+}
+
+.icons {
+  width: 50px;
+  height: 50px;
+  pointer-events: none;
+}
+
+#bottom-nav {
+  width: 100vw;
+  position: fixed;
+  background-color: gray;
+  bottom: 0;
+}
+
+.section {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0;
+}
+
+</style>
 
 <script>
   async function loadCount() {
@@ -32,22 +159,45 @@
     }
   }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.href = '/login';
+  async function loadLowCount() {
+    try {
+      const res = await fetch('/dashboard/low');
+      if (!res.ok) throw new Error('Fetch error');
+      const data = await res.json();
+      document.getElementById('lowCount').textContent = data.lowCount;
+      document.getElementById('minVal').textContent = data.min;
+    } catch (err) {
+      console.error(err);
+      document.getElementById('lowCount').textContent = 'Fehler';
+      document.getElementById('minVal').textContent = '-';
+    }
+  }
+
+  document.getElementById('settingsBtn').addEventListener('click', async () => {
+    // await fetch('/api/logout', { method: 'POST' });
+    // window.location.href = '/login';
   });
 
   document.getElementById('lager').addEventListener('click', () => {
     window.location.href = '/lager';
   });
 
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        await fetch('/api/logout', { method: 'POST' });
+      } catch (e) { /* ignore network errors */ }
+      window.location.href = '/login';
+    });
+
   document.getElementById('einlagern').addEventListener('click', () => {
     window.location.href = '/einlagern';
   });
 
-  window.addEventListener('DOMContentLoaded', loadCount);
+  window.addEventListener('DOMContentLoaded', () => {
+    loadCount();
+    loadLowCount();
+  });
 </script>
-
 </body>
 </html>
 

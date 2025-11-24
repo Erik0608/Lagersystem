@@ -20,26 +20,57 @@
             padding: 20px 30px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-            width: 320px;
+            width: 100vw;
+            height: 100vh;
         }
 
         h2 {
             text-align: center;
             margin-bottom: 20px;
         }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .link {
+            text-align: center;
+            margin-top: 10px;
+        }
 
         input {
+            font-size: 16px;
             width: 100%;
             padding: 10px;
             margin: 6px 0 12px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-top: gray;
+            border-left: gray;
+            border-right: gray;
+            margin-top: 5vh;
+        }
+
+        .icon-input {
+        position: relative;
+        }
+
+        .icon-input .icon {
+            position: absolute;
+            left: 5px;
+            top: 68%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            pointer-events: none;
+        }
+                .icon-input input {
+            padding-left: 30px; /* space for icon */
         }
 
         button {
             width: 100%;
             padding: 10px;
-            background: #007BFF;
+            background: #112D4E;
             border: none;
             color: white;
             border-radius: 4px;
@@ -48,7 +79,7 @@
         }
 
         button:hover {
-            background: #0056b3;
+            background: #112D4E;
         }
 
         .error {
@@ -61,17 +92,25 @@
 <body>
 
 <div class="login-box">
+    <h1>Lagersystem</h1>
     <h2>Login</h2>
+
+    <div id="error" class="error"></div>
+
+    <div class="icon-input">
+        <img src="/img/User.svg" class="icon" alt="user" />
+        <input type="text" id="identifier" placeholder="Username oder Email" required />
+    </div>
+    <div class="icon-input">
+        <img src="/img/lock.svg" class="icon" alt="lock" />
+    <input type="password" id="password" placeholder="Passwort" required />
+    </div>
+
+    <button onclick="login()">Login</button>
 
     <div class="link">
         Noch kein Konto? <a href="/register.html">Registrieren</a>
     </div>
-    <div id="error" class="error"></div>
-
-    <input type="text" id="identifier" placeholder="Username oder Email" required />
-    <input type="password" id="password" placeholder="Passwort" required />
-
-    <button onclick="login()">Login</button>
 </div>
 
 <script>

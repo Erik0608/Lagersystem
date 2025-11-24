@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Bestand</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
-    form { display:flex; gap:.5rem; margin-bottom:1rem; align-items:center; flex-wrap:wrap; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial}
+    form { display:flex; margin-bottom:1rem; align-items:center; flex-wrap:wrap; }
     input[type="text"] { flex:1; padding:.5rem; min-width:200px; }
     input[type="number"] { width:7rem; padding:.5rem; }
     button { padding:.5rem 1rem; }
@@ -16,25 +16,66 @@
     .msg { margin-top:.5rem; color: #007700; }
     .error { color: #aa0000; }
 
-    /* ensure page content isn't hidden behind the fixed nav */
-    body { padding-bottom: 84px; }
+    /* ensure page content isn't hidden behind the fixed nav
+       and match the nav height below */
+    body { padding-bottom: 72px; }
 
-    /* fixed bottom navigation */
-    .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 64px;
-      background: #ffffff;
-      border-top: 1px solid #ddd;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 10px;
-      box-shadow: 0 -2px 6px rgba(0,0,0,0.03);
-      z-index: 9999;
-    }
+.icons {
+  width: 50px;
+  height: 50px;
+  pointer-events: none;
+}
+
+/* make the bottom nav span the full viewport and sit on top */
+#bottom-nav {
+   position: fixed;
+   left: 0;
+   right: 0;
+   bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #6f6f6f;
+  z-index: 10000;
+  height: 72px;              /* explicit height */
+  display: flex;
+  align-items: center;
+  transition: box-shadow .18s ease, transform .18s ease;
+  will-change: transform, box-shadow;
+}
+
+/* keep the nav content centered like the page content */
+.section {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 10px 0;
+  width: 100%;
+  max-width: 800px; /* same max width as page content */
+  margin: 0 auto;
+}
+
+/* new: make the nav item containers behave like buttons */
+#bottom-nav .section > div {
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+/* visible focus ring for keyboard users */
+#bottom-nav .section > div:focus {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+}
+
+/* elevated appearance when page is scrolled or focused */
+#bottom-nav.elevated {
+  box-shadow: 0 -6px 18px rgba(0,0,0,0.25);
+  transform: translateZ(0);
+}
   </style>
 </head>
 <body>
@@ -54,7 +95,7 @@
     <div id="listWrap">
       <table id="itemsTable" aria-live="polite">
         <thead>
-          <tr><th>ID</th><th>Name</th><th>Anzahl</th><th>Erfasst</th></tr>
+          <tr><th>ID</th><th>Name</th><th>Beschreibung</th><th>Anzahl</th><th>Erfasst</th></tr>
         </thead>
         <tbody id="itemsBody">
           <!-- Einträge werden hier eingefügt -->
@@ -63,14 +104,19 @@
     </div>
   </section>
 
-  <!-- bottom navigation (always visible) -->
-  <nav class="bottom-nav" aria-label="Hauptnavigation">
-    <div class="section">
-      <button id="nav-settings" title="Einstellungen">Einstellungen</button>
-      <button id="nav-dashboard" title="Dashboard">Dashboard</button>
-      <button id="nav-logout" title="Abmelden">Logout</button>
+<div id="bottom-nav">
+  <div class="section">
+    <div id="settingsBtn" role="button" tabindex="0" aria-label="Einstellungen">
+      <img src="/img/Settings.svg" class="icons" alt="Settings"/>
     </div>
-  </nav>
+    <div id="dashBtn" role="button" tabindex="0" aria-label="Startseite">
+      <img src="/img/Home.svg" class="icons" alt="Home"/>
+    </div>
+    <div id="logoutBtn" role="button" tabindex="0" aria-label="Abmelden">
+      <img src="/img/Logout.svg" class="icons" alt="Logout"/>
+    </div>
+  </div>
+</div>
 
   <script>
     function escapeHTML(s) {
@@ -102,7 +148,7 @@
         document.getElementById('feedback').textContent = 'Konnte Einträge nicht laden.';
         document.getElementById('feedback').className = 'error';
         const tbody = document.getElementById('itemsBody');
-        tbody.innerHTML = '<tr><td colspan="4">Fehler</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Fehler</td></tr>';
       }
     }
 
@@ -110,14 +156,16 @@
       const tbody = document.getElementById('itemsBody');
       tbody.innerHTML = '';
       if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5">Keine Einträge</td></tr>';
         return;
       }
       for (const it of items) {
+        console.log("desc:" + it.description);
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${escapeHTML(it.id)}</td>
           <td>${escapeHTML(it.name)}</td>
+          <td>${escapeHTML(it.description || '')}</td>
           <td>${escapeHTML(it.quantity)}</td>
           <td>${escapeHTML(new Date(it.created_at).toLocaleString())}</td>
         `;
@@ -139,19 +187,47 @@
     // initial load: all items
     fetchItems();
 
+    // add elevation while page is scrolled to keep nav visually prominent
+    (function() {
+      const nav = document.getElementById('bottom-nav');
+      if (!nav) return;
+      let lastScrollY = window.scrollY;
+      const setElev = (on) => nav.classList.toggle('elevated', on);
+
+      // add elevated class when scrolled down a bit
+      window.addEventListener('scroll', () => {
+        const scrolled = window.scrollY > 8;
+        setElev(scrolled);
+        lastScrollY = window.scrollY;
+      }, { passive: true });
+
+      // ensure keyboard focus also shows elevation
+      nav.addEventListener('focusin', () => setElev(true));
+      nav.addEventListener('focusout', () => {
+        // keep elevated if page is scrolled
+        setElev(window.scrollY > 8);
+      });
+    })();
+
     // navigation handlers
-    document.getElementById('nav-dashboard').addEventListener('click', () => {
-      window.location.href = '/dashboard';
-    });
-    document.getElementById('nav-settings').addEventListener('click', () => {
-      window.location.href = '/einstellungen';
-    });
-    document.getElementById('nav-logout').addEventListener('click', async () => {
+    // attach to actual IDs used in the markup, with defensive checks
+    const dashEl = document.getElementById('dashBtn');
+    if (dashEl) {
+      dashEl.addEventListener('click', () => { window.location.href = '/dashboard'; });
+      dashEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/dashboard'; } });
+    }
+    const settingsEl = document.getElementById('settingsBtn');
+    if (settingsEl) {
+      settingsEl.addEventListener('click', () => { window.location.href = '/einstellungen'; });
+      settingsEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/einstellungen'; } });
+    }
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
       try {
         await fetch('/api/logout', { method: 'POST' });
       } catch (e) { /* ignore network errors */ }
       window.location.href = '/login';
     });
+
   </script>
 </body>
 </html>

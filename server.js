@@ -14,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 //sesions for login
 const session = require("express-session");
 
+// settings
+const min_quantity = 10;
+
 app.use(
   session({
     secret: "12345",
@@ -53,7 +56,7 @@ const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
 
   // Mount dashboard router now that DB is ready
   const createDashboardRouter = require('./routes/dashboard');
-  app.use('/dashboard', createDashboardRouter({ db }));
+  app.use('/dashboard', createDashboardRouter({ db, min_quantity }));
 
   // Mount remaining routers
   app.use('/', pagesRouter);      // Seiten
@@ -148,7 +151,8 @@ db.serialize(() => {
   db.run(
     `CREATE TABLE IF NOT EXISTS items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
+      name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      description TEXT,
       quantity INTEGER NOT NULL DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -158,70 +162,120 @@ db.serialize(() => {
   );
 });
 
-// API: alle Gegenstände holen (mit Such- und Filter-Parametern)
-app.get('/items', (req, res) => {
-  // Query params:
-  //  - q: text search in name (substring, case-insensitive)
-  //  - min: minimum quantity
-  //  - max: maximum quantity
-  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  const min = req.query.min !== undefined ? parseInt(req.query.min, 10) : undefined;
-  const max = req.query.max !== undefined ? parseInt(req.query.max, 10) : undefined;
-
-  let sql = 'SELECT id, name, quantity, created_at FROM items WHERE 1=1';
-  const params = [];
-
-  if (q) {
-    // case-insensitive search
-    sql += ' AND LOWER(name) LIKE ?';
-    params.push(`%${q.toLowerCase()}%`);
-  }
-  if (!isNaN(min)) {
-    sql += ' AND quantity >= ?';
-    params.push(min);
-  }
-  if (!isNaN(max)) {
-    sql += ' AND quantity <= ?';
-    params.push(max);
-  }
-
-  sql += ' ORDER BY id DESC';
-
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      console.error('DB Fehler beim Laden der gefilterten Items:', err.message);
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
-    res.json(rows);
-  });
-});
-
-// API: Gegenstand hinzufügen
+// API: Gegenstand hinzufügen (oder Menge erhöhen, falls Name schon existiert)
 app.post('/items', (req, res) => {
   const name = (req.body.name || '').toString().trim();
   const quantity = parseInt(req.body.quantity, 10) || 1;
+  const desc = (req.body.desc || req.body.description || '').toString().trim(); // <-- added
 
   if (!name) {
     return res.status(400).json({ error: 'Name darf nicht leer sein' });
   }
 
-  const stmt = db.prepare('INSERT INTO items (name, quantity) VALUES (?, ?)');
-  stmt.run([name, quantity], function (err) {
+  // Suche nach bestehendem Eintrag (case-insensitive dank COLLATE NOCASE)
+  db.get('SELECT id, name, description, quantity, created_at FROM items WHERE name = ? COLLATE NOCASE', [name], (err, row) => {
     if (err) {
-      console.error('Insert Fehler:', err.message);
-      return res.status(500).json({ error: 'Konnte Eintrag nicht speichern' });
+      console.error('DB Fehler beim Prüfen vorhandener Items:', err.message);
+      return res.status(500).json({ error: 'Datenbankfehler' });
     }
 
-    const newId = this.lastID;
-    db.get('SELECT id, name, quantity, created_at FROM items WHERE id = ?', [newId], (err, row) => {
-      if (err) {
-        console.error('Select nach Insert Fehler:', err.message);
-        return res.status(500).json({ error: 'Konnte Eintrag nicht lesen' });
+    if (row) {
+      // Update: Menge addieren, optional Beschreibung aktualisieren wenn übergeben
+      const newQty = (row.quantity || 0) + quantity;
+
+      if (desc) {
+        // If a description was provided, update both quantity and description
+        db.run('UPDATE items SET quantity = ?, description = ? WHERE id = ?', [newQty, desc, row.id], function (updateErr) {
+          if (updateErr) {
+            console.error('Update Fehler:', updateErr.message);
+            return res.status(500).json({ error: 'Konnte Eintrag nicht aktualisieren' });
+          }
+          // Rückgabe des aktualisierten Eintrags
+          db.get('SELECT id, name, description, quantity, created_at FROM items WHERE id = ?', [row.id], (getErr, updatedRow) => {
+            if (getErr) {
+              console.error('Select nach Update Fehler:', getErr.message);
+              return res.status(500).json({ error: 'Konnte Eintrag nicht lesen' });
+            }
+            return res.json(updatedRow);
+          });
+        });
+      } else {
+        // Only update quantity
+        db.run('UPDATE items SET quantity = ? WHERE id = ?', [newQty, row.id], function (updateErr) {
+          if (updateErr) {
+            console.error('Update Fehler:', updateErr.message);
+            return res.status(500).json({ error: 'Konnte Eintrag nicht aktualisieren' });
+          }
+          // Rückgabe des aktualisierten Eintrags
+          db.get('SELECT id, name, description, quantity, created_at FROM items WHERE id = ?', [row.id], (getErr, updatedRow) => {
+            if (getErr) {
+              console.error('Select nach Update Fehler:', getErr.message);
+              return res.status(500).json({ error: 'Konnte Eintrag nicht lesen' });
+            }
+            return res.json(updatedRow);
+          });
+        });
       }
-      res.status(201).json(row);
-    });
+    } else {
+      // Neuer Eintrag
+      const stmt = db.prepare('INSERT INTO items (name, quantity, description) VALUES (?, ?, ?)');
+      stmt.run([name, quantity, desc], function (insertErr) { // <-- use desc here
+        if (insertErr) {
+          console.error('Insert Fehler:', insertErr.message);
+          return res.status(500).json({ error: 'Konnte Eintrag nicht speichern' });
+        }
+        const newId = this.lastID;
+        db.get('SELECT id, name, description, quantity, created_at FROM items WHERE id = ?', [newId], (getErr, newRow) => {
+          if (getErr) {
+            console.error('Select nach Insert Fehler:', getErr.message);
+            return res.status(500).json({ error: 'Konnte Eintrag nicht lesen' });
+          }
+          res.status(201).json(newRow);
+        });
+      });
+      stmt.finalize();
+    }
   });
-  stmt.finalize();
+});
+
+// GET /items - list items
+app.get('/items', (req, res) => {
+  const q = (req.query.q || '').toString().trim();
+  const min = req.query.min !== undefined && req.query.min !== '' ? parseInt(req.query.min, 10) : null; // <-- added
+  const max = req.query.max !== undefined && req.query.max !== '' ? parseInt(req.query.max, 10) : null; // <-- added
+
+  const where = [];
+  const params = [];
+
+  if (q) {
+    // if q is numeric allow matching id as well
+    if (/^\d+$/.test(q)) {
+      where.push('(id = ? OR name LIKE ? COLLATE NOCASE)');
+      params.push(parseInt(q, 10), `%${q}%`);
+    } else {
+      where.push('name LIKE ? COLLATE NOCASE');
+      params.push(`%${q}%`);
+    }
+  }
+
+  if (min !== null && !Number.isNaN(min)) {
+    where.push('quantity >= ?');
+    params.push(min);
+  }
+  if (max !== null && !Number.isNaN(max)) {
+    where.push('quantity <= ?');
+    params.push(max);
+  }
+
+  const sql = `SELECT id, name, description, quantity, created_at FROM items ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC`; // include desc
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error('DB Fehler beim Laden der Items:', err.message);
+      return res.status(500).json({ error: 'Datenbankfehler' });
+    }
+    res.json(rows || []);
+  });
 });
 
 // Optional: healthcheck
