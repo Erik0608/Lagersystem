@@ -14,14 +14,13 @@ router.get("/register", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/register.html"));
 });
 
-// Dashboard
-router.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/dashboard.html"));
-});
-
 // Lager
 router.get("/lager", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/lager.html"));
 });
 
+// Einlagern
+router.get("/einlagern", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/einlagern.html"));
+});
 module.exports = router;

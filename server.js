@@ -43,9 +43,6 @@ app.get("/", (req, res) => {
   }
 });
 
-app.use('/', pagesRouter);      // Seiten
-app.use('/api', apiRouter);     // API
-
 // Open (oder erstellen) die SQLite DB
 const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
   if (err) {
@@ -53,8 +50,15 @@ const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
     process.exit(1);
   }
   console.log('Verbunden mit database.db');
-});
 
+  // Mount dashboard router now that DB is ready
+  const createDashboardRouter = require('./routes/dashboard');
+  app.use('/dashboard', createDashboardRouter({ db }));
+
+  // Mount remaining routers
+  app.use('/', pagesRouter);      // Seiten
+  app.use('/api', apiRouter);     // API
+});
 
 // User Tabelle
 db.run(
@@ -154,11 +158,38 @@ db.serialize(() => {
   );
 });
 
-// API: alle Gegenstände holen
+// API: alle Gegenstände holen (mit Such- und Filter-Parametern)
 app.get('/items', (req, res) => {
-  db.all('SELECT id, name, quantity, created_at FROM items ORDER BY id DESC', [], (err, rows) => {
+  // Query params:
+  //  - q: text search in name (substring, case-insensitive)
+  //  - min: minimum quantity
+  //  - max: maximum quantity
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const min = req.query.min !== undefined ? parseInt(req.query.min, 10) : undefined;
+  const max = req.query.max !== undefined ? parseInt(req.query.max, 10) : undefined;
+
+  let sql = 'SELECT id, name, quantity, created_at FROM items WHERE 1=1';
+  const params = [];
+
+  if (q) {
+    // case-insensitive search
+    sql += ' AND LOWER(name) LIKE ?';
+    params.push(`%${q.toLowerCase()}%`);
+  }
+  if (!isNaN(min)) {
+    sql += ' AND quantity >= ?';
+    params.push(min);
+  }
+  if (!isNaN(max)) {
+    sql += ' AND quantity <= ?';
+    params.push(max);
+  }
+
+  sql += ' ORDER BY id DESC';
+
+  db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('DB Fehler:', err.message);
+      console.error('DB Fehler beim Laden der gefilterten Items:', err.message);
       return res.status(500).json({ error: 'Datenbankfehler' });
     }
     res.json(rows);
@@ -205,5 +236,3 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
-
-// Dashboard logic

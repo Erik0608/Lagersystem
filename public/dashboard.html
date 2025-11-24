@@ -1,10 +1,53 @@
+</html>
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-  <title>Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Dashboard</h1>
-  <a href="/lager">Zum Lager</a>
+
+<h1>Dashboard</h1>
+<h2>Lagersystem</h2>
+
+<p>Gesamtanzahl Gegenstände: <span id="itemCount">Lade...</span></p>
+<button id="lager">Zum Lager</button>
+<button id="einlagern">Einlagern</button>
+<button id="auslagern">Auslagern</button>
+<button id="einstellungen">Einstellungen</button>
+<button id="logoutBtn">Logout</button>
+
+<script>
+  async function loadCount() {
+    try {
+      const res = await fetch('/dashboard/count');
+      if (!res.ok) throw new Error('Fetch error');
+      const data = await res.json();
+      document.getElementById('itemCount').textContent = data.count;
+    } catch (err) {
+      console.error(err);
+      document.getElementById('itemCount').textContent = err.message;
+    }
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login';
+  });
+
+  document.getElementById('lager').addEventListener('click', () => {
+    window.location.href = '/lager';
+  });
+
+  document.getElementById('einlagern').addEventListener('click', () => {
+    window.location.href = '/einlagern';
+  });
+
+  window.addEventListener('DOMContentLoaded', loadCount);
+</script>
+
 </body>
 </html>
+
