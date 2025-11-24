@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <style>
+        body {
+            background: #f3f3f3;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-box {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            width: 320px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #007BFF;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .error {
+            color: #b30000;
+            margin-bottom: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h2>Login</h2>
+
+    <div class="link">
+        Noch kein Konto? <a href="/register.html">Registrieren</a>
+    </div>
+    <div id="error" class="error"></div>
+
+    <input type="text" id="identifier" placeholder="Username oder Email" required />
+    <input type="password" id="password" placeholder="Passwort" required />
+
+    <button onclick="login()">Login</button>
+</div>
+
+<script>
+async function login() {
+    const identifier = document.getElementById("identifier").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorBox = document.getElementById("error");
+
+    if (!identifier || !password) {
+        errorBox.textContent = "Bitte beide Felder ausfüllen.";
+        errorBox.style.display = "block";
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorBox.textContent = data.error || "Login fehlgeschlagen";
+            errorBox.style.display = "block";
+            return;
+        }
+
+        // Weiterleiten nach erfolgreichem Login
+        window.location.href = "/dashboard.html";
+
+    } catch (err) {
+        errorBox.textContent = "Serverfehler";
+        errorBox.style.display = "block";
+        console.error(err);
+    }
+}
+</script>
+
+</body>
+</html>

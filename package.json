@@ -7,7 +7,23 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "bcrypt": "^6.0.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
     "sqlite3": "^5.1.6"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Erik0608/Lagersystem.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Erik0608/Lagersystem/issues"
+  },
+  "homepage": "https://github.com/Erik0608/Lagersystem#readme"
 }

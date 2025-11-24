@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registrierung</title>
+
+    <style>
+        body {
+            background: #f3f3f3;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .register-box {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            width: 340px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1e7e34;
+        }
+
+        .error, .success {
+            display: none;
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #b30000;
+        }
+
+        .success {
+            background: #e6ffe6;
+            color: #1f7a1f;
+        }
+
+        .link {
+            display: block;
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        
+        .link a {
+            text-decoration: none;
+            color: #007bff;
+        }
+        
+        .link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="register-box">
+    <h2>Registrieren</h2>
+
+    <div id="error" class="error"></div>
+    <div id="success" class="success"></div>
+
+    <input type="text" id="username" placeholder="Username (optional)" />
+    <input type="email" id="email" placeholder="Email (optional)" />
+    <input type="password" id="password" placeholder="Passwort" required />
+
+    <button onclick="register()">Registrieren</button>
+
+    <div class="link">
+        Bereits ein Konto? <a href="/login.html">Zum Login</a>
+    </div>
+</div>
+
+
+<script>
+async function register() {
+    const username = document.getElementById("username").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorBox = document.getElementById("error");
+    const successBox = document.getElementById("success");
+
+    errorBox.style.display = "none";
+    successBox.style.display = "none";
+
+    if (!password || (!username && !email)) {
+        errorBox.textContent = "Bitte Username ODER Email + Passwort eingeben.";
+        errorBox.style.display = "block";
+        return;
+    }
+
+    if (password.length < 4) {
+        errorBox.textContent = "Passwort muss mindestens 4 Zeichen lang sein.";
+        errorBox.style.display = "block";
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorBox.textContent = data.error || "Registrierung fehlgeschlagen";
+            errorBox.style.display = "block";
+            return;
+        }
+
+        successBox.textContent = "Registrierung erfolgreich! Du wirst weitergeleitet…";
+        successBox.style.display = "block";
+
+        // Weiterleitung nach 1.5 Sekunden zum Login
+        setTimeout(() => {
+            window.location.href = "/login.html";
+        }, 1500);
+
+    } catch (err) {
+        errorBox.textContent = "Serverfehler";
+        errorBox.style.display = "block";
+        console.error(err);
+    }
+}
+</script>
+
+</body>
+</html>

@@ -1,18 +1,39 @@
 // server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const path = require('path')
+
+const bcrypt = require("bcrypt");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+//sesions for login
+const session = require("express-session");
+
+app.use(
+  session({
+    secret: "12345",
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+// router
+const pagesRouter = require('./routes/pages');
+const apiRouter = require('./routes/api');
+
+app.use(express.static(path.join(__dirname, "public")));
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve index.html from project root
+app.use('/', pagesRouter);      // Seiten
+app.use('/api', apiRouter);     // API
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
+  res.redirect('/login'); // Startseite = Login
 });
 
 // Open (oder erstellen) die SQLite DB
@@ -22,6 +43,90 @@ const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
     process.exit(1);
   }
   console.log('Verbunden mit database.db');
+});
+
+
+// User Tabelle
+db.run(
+  `CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    password TEXT NOT NULL
+  )`
+);
+
+//login
+
+app.post("/api/login", (req, res) => {
+  const { identifier, password } = req.body;
+
+  // identifier = email ODER username
+  db.get(
+    `SELECT * FROM users WHERE username = ? OR email = ?`,
+    [identifier, identifier],
+    async (err, user) => {
+      if (err) return res.status(500).json({ error: "DB Fehler" });
+
+      if (!user)
+        return res.status(400).json({ error: "User nicht gefunden" });
+
+      const valid = await bcrypt.compare(password, user.password);
+
+      if (!valid) return res.status(400).json({ error: "Falsches Passwort" });
+
+      // Session setzen
+      req.session.userId = user.id;
+
+      res.json({ message: "Login erfolgreich" });
+    }
+  );
+});
+
+// register
+app.post("/api/register", async (req, res) => {
+  const { username, email, password } = req.body;
+
+  if (!password || (!username && !email)) {
+    return res.status(400).json({ error: "Username oder Email + Passwort nötig" });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  db.run(
+    `INSERT INTO users (username, email, password) VALUES (?, ?, ?)`,
+    [username || null, email || null, hash],
+    function (err) {
+      if (err) {
+        console.error(err);
+        return res.status(400).json({ error: "User existiert bereits" });
+      }
+      res.json({ message: "Registrierung erfolgreich" });
+    }
+  );
+});
+
+// protected route
+app.get("/api/me", (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Nicht eingeloggt" });
+  }
+
+  db.get(
+    `SELECT id, username, email FROM users WHERE id = ?`,
+    [req.session.userId],
+    (err, user) => {
+      if (err) return res.status(500).json({ error: "DB Fehler" });
+      res.json(user);
+    }
+  );
+});
+
+// logout
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ message: "Logout erfolgreich" });
+  });
 });
 
 // Tabelle erstellen, falls nicht vorhanden
