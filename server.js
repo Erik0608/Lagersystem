@@ -1,3 +1,6 @@
+print = console.log
+print("Starting server...")
+
 // server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
@@ -23,18 +26,25 @@ app.use(
 const pagesRouter = require('./routes/pages');
 const apiRouter = require('./routes/api');
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { index: false }));
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Add root redirect BEFORE mounting pagesRouter so it takes precedence
+app.get("/", (req, res) => {
+  if (req.session && req.session.userId) {
+    print("redirect to dashboard");
+    return res.redirect("/dashboard");
+  } else {
+    print("redirect to login");
+    return res.redirect("/login");
+  }
+});
+
 app.use('/', pagesRouter);      // Seiten
 app.use('/api', apiRouter);     // API
-
-app.get('/', (req, res) => {
-  res.redirect('/login'); // Startseite = Login
-});
 
 // Open (oder erstellen) die SQLite DB
 const db = new sqlite3.Database(path.join(__dirname, 'database.db'), (err) => {
@@ -195,3 +205,5 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
+
+// Dashboard logic
