@@ -10,6 +10,12 @@ module.exports = function createDashboardRouter({ db, min_quantity } = {}) {
 		return res.sendFile(path.join(__dirname, '../public/dashboard.html'));
 	});
 
+	// Sicherheit: Zahlen aus dem Lager nur für eingeloggte Benutzer
+	router.use((req, res, next) => {
+		if (req.session && req.session.userId) return next();
+		return res.status(401).json({ error: 'Nicht eingeloggt' });
+	});
+
 	// Return only the items count
 	router.get('/count', (req, res) => {
 		if (!db) return res.status(500).json({ error: 'DB not initialized' });

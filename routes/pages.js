@@ -16,11 +16,13 @@ router.get("/register", (req, res) => {
 
 // Lager
 router.get("/lager", (req, res) => {
+  if (!req.session || !req.session.userId) return res.redirect("/login");
   res.sendFile(path.join(__dirname, "../public/lager.html"));
 });
 
 // Einlagern
 router.get("/einlagern", (req, res) => {
+  if (!req.session || !req.session.userId) return res.redirect("/login");
   res.sendFile(path.join(__dirname, "../public/einlagern.html"));
 });
 module.exports = router;
